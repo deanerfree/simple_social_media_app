@@ -2,6 +2,7 @@ from fastapi import FastAPI, status, HTTPException, Response, Depends, APIRouter
 
 from typing import Optional, List
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 # from sqlalchemy.sql.functions import mode
 from .. import models, schemas, utils, oauth2
 from ..db import get_db
@@ -9,7 +10,7 @@ from ..db import get_db
 router = APIRouter(prefix="/posts", tags=['Posts'])
 
 
-@router.get("/", response_model=List[schemas.Post])
+@router.get("/", response_model=List[schemas.PostOut])
 # def get_posts():
 # cursor.execute("""SELECT * FROM posts""")
 # posts = cursor.fetchall()
@@ -18,7 +19,11 @@ def get_posts(db: Session = Depends(get_db), current_user: dict = Depends((oauth
     # To only retrieve posts that only the user made use the following code
     # posts = db.query(models.Post).filter(
     #     models.Post.owner_id == current_user.id).all()
-    posts = db.query(models.Post).filter(
+    # posts = db.query(models.Post).filter(
+    #     models.Post.title.contains(search)).limit(limit).offset(skip).all()
+
+    posts = db.query(models.Post, func.count(models.Vote.post_id).label("votes")).join(
+        models.Vote, models.Vote.post_id == models.Post.id, isouter=True).group_by(models.Post.id).filter(
         models.Post.title.contains(search)).limit(limit).offset(skip).all()
 
     if not posts:
@@ -27,14 +32,15 @@ def get_posts(db: Session = Depends(get_db), current_user: dict = Depends((oauth
     return posts
 
 
-@router.get('/{id}', response_model=schemas.Post)
+@router.get('/{id}', response_model=schemas.PostOut)
 # def get_post(id: int):
 #     cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id)))
 #     post = cursor.fetchone()
 def get_post(id: int, db: Session = Depends(get_db), current_user: dict = Depends((oauth2.get_current_user))):
-    get_post = db.query(models.Post).filter(models.Post.id == id).first()
-
-    if not get_post:
+    # get_post = db.query(models.Post).filter(models.Post.id == id).first()
+    post = db.query(models.Post, func.count(models.Vote.post_id).label("votes")).join(
+        models.Vote, models.Vote.post_id == models.Post.id, isouter=True).group_by(models.Post.id).filter(models.Post.id == id).first()
+    if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"id: {id} not found")
 
@@ -43,7 +49,7 @@ def get_post(id: int, db: Session = Depends(get_db), current_user: dict = Depend
     #     raise HTTPException(
     #         status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to perform action")
 
-    return get_post
+    return post
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.Post)
