@@ -3,6 +3,7 @@
 
 # from typing import Optional, List
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # import psycopg2
 
@@ -15,10 +16,21 @@ from .db import engine
 from .routers import post, users, auth, vote
 
 
-models.Base.metadata.create_all(bind=engine)
+# models.Base.metadata.create_all(bind=engine)
+
+origins = [
+    "*"
+]
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # used to run raw SQL
 # while True:
 #     try:
@@ -31,6 +43,11 @@ app = FastAPI()
 #         print('Connection to database failed')
 #         print("Error: ", error)
 #         time.sleep(2)
+
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome"}
 
 app.include_router(post.router)
 app.include_router(users.router)
