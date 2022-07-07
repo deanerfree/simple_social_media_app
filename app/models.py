@@ -17,7 +17,7 @@ class Post(Base):
     owner_id = Column(Integer, ForeignKey(
         "users.id", ondelete="CASCADE"), nullable=False)
 
-    owner = relationship("Users")
+    owner = relationship("User")
 
 
 class User(Base):
